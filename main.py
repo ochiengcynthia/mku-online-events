@@ -1,169 +1,200 @@
-from flask import Flask, jsonify, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_migrate import Migrate
-from models import db, User, Event, Participant
-from datetime import datetime
+from models import db
+from models import User, Event, Staff, ServiceProvider, Sponsor
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///events.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-CORS(app)
 db.init_app(app)
-migrate = Migrate(app, db)
+CORS(app)
 
-@app.route('/')
-def index():
-    return 'Welcome to the Event API!'
-
-# GET all Users
+# User CRUD
 @app.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
-    user_list = [user.to_dict() for user in users]
-    return jsonify(user_list)
+    return jsonify([user.to_dict() for user in users])
 
-#GET user by id
-@app.route('/users/<int:user_id>', methods=['GET'])
-def get_user(user_id):
-    user = User.query.get(user_id)
-    if user:
-        return jsonify(user.to_dict()), 200
-    else:
-        return jsonify({'error': 'User not found'}), 404
+@app.route('/users/<int:id>', methods=['GET'])
+def get_user(id):
+    user = User.query.get_or_404(id)
+    return jsonify(user.to_dict())
 
-#create new user
 @app.route('/users', methods=['POST'])
 def create_user():
-    data = request.get_json()
-    user = User(username=data['username'], email=data['email'])
-    db.session.add(user)
+    data = request.json
+    new_user = User(username=data['username'], email=data['email'], password=data['password'])
+    db.session.add(new_user)
     db.session.commit()
-    return jsonify(user.to_dict()), 201
+    return jsonify(new_user.to_dict()), 201
 
-#update user details
-@app.route('/users/<int:user_id>', methods=['PUT'])
-def update_user(user_id):
-    data = request.get_json()
-    user = User.query.get(user_id)
-    if user:
-        user.username = data.get('username', user.username)
-        user.email = data.get('email', user.email)
-        db.session.commit()
-        return jsonify(user.to_dict()), 200
-    else:
-        return jsonify({'error': 'User not found'}), 404
+@app.route('/users/<int:id>', methods=['PUT'])
+def update_user(id):
+    data = request.json
+    user = User.query.get_or_404(id)
+    user.username = data.get('username', user.username)
+    user.email = data.get('email', user.email)
+    user.password = data.get('password', user.password)
+    db.session.commit()
+    return jsonify(user.to_dict())
 
-#delete user
-@app.route('/users/<int:user_id>', methods=['DELETE'])
-def delete_user(user_id):
-    user = User.query.get(user_id)
-    if user:
-        db.session.delete(user)
-        db.session.commit()
-        return jsonify({'message': 'User deleted'}), 200
-    else:
-        return jsonify({'error': 'User not found'}), 404
+@app.route('/users/<int:id>', methods=['DELETE'])
+def delete_user(id):
+    user = User.query.get_or_404(id)
+    db.session.delete(user)
+    db.session.commit()
+    return '', 204
 
-# Event routes
+# Event CRUD
 @app.route('/events', methods=['GET'])
 def get_events():
     events = Event.query.all()
-    event_list = [event.__dict__ for event in events]
-    for event in event_list:
-        del event['_sa_instance_state']
-    return jsonify(event_list)
+    return jsonify([event.to_dict() for event in events])
 
-#GET event by id
-@app.route('/events/<int:event_id>', methods=['GET'])
-def get_event(event_id):
-    event = Event.query.get(event_id)
-    if event:
-        return jsonify(event.__dict__), 200
-    else:
-        return jsonify({'error': 'Event not found'}), 404
+@app.route('/events/<int:id>', methods=['GET'])
+def get_event(id):
+    event = Event.query.get_or_404(id)
+    return jsonify(event.to_dict())
 
-#create event
 @app.route('/events', methods=['POST'])
 def create_event():
-    data = request.get_json()
-    event = Event(
-        name=data['name'],
+    data = request.json
+    new_event = Event(
+        eventname=data['eventname'],
         description=data['description'],
-        date=datetime.strptime(data['date'], '%Y-%m-%d %H:%M:%S'),
-        location=data['location'],
-        organizer_id=data['organizer_id']
+        date=data['date'],
+        venue=data['venue'],
+        clientname=data['clientname']
     )
-    db.session.add(event)
+    db.session.add(new_event)
     db.session.commit()
-    return jsonify(event.__dict__), 201
+    return jsonify(new_event.to_dict()), 201
 
-#UPDATE event
-@app.route('/events/<int:event_id>', methods=['PUT'])
-def update_event(event_id):
-    data = request.get_json()
-    event = Event.query.get(event_id)
-    if event:
-        event.name = data.get('name', event.name)
-        event.description = data.get('description', event.description)
-        event.date = datetime.strptime(data.get('date', event.date.strftime('%Y-%m-%d %H:%M:%S')), '%Y-%m-%d %H:%M:%S')
-        event.location = data.get('location', event.location)
-        db.session.commit()
-        return jsonify(event.__dict__), 200
-    else:
-        return jsonify({'error': 'Event not found'}), 404
-
-#DELETE event
-@app.route('/events/<int:event_id>', methods=['DELETE'])
-def delete_event(event_id):
-    event = Event.query.get(event_id)
-    if event:
-        db.session.delete(event)
-        db.session.commit()
-        return jsonify({'message': 'Event deleted'}), 200
-    else:
-        return jsonify({'error': 'Event not found'}), 404
-
-# Participant routes
-@app.route('/participants', methods=['GET'])
-def get_participants():
-    participants = Participant.query.all()
-    participant_list = [participant.__dict__ for participant in participants]
-    for participant in participant_list:
-        del participant['_sa_instance_state']
-    return jsonify(participant_list)
-
-#GET participants by id
-@app.route('/participants/<int:participant_id>', methods=['GET'])
-def get_participant(participant_id):
-    participant = Participant.query.get(participant_id)
-    if participant:
-        return jsonify(participant.__dict__), 200
-    else:
-        return jsonify({'error': 'Participant not found'}), 404
-
-#CREATE participant
-@app.route('/participants', methods=['POST'])
-def create_participant():
-    data = request.get_json()
-    participant = Participant(
-        user_id=data['user_id'],
-        event_id=data['event_id']
-    )
-    db.session.add(participant)
+@app.route('/events/<int:id>', methods=['PUT'])
+def update_event(id):
+    data = request.json
+    event = Event.query.get_or_404(id)
+    event.eventname = data.get('eventname', event.eventname)
+    event.description = data.get('description', event.description)
+    event.date = data.get('date', event.date)
+    event.venue = data.get('venue', event.venue)
+    event.clientname = data.get('clientname', event.clientname)
     db.session.commit()
-    return jsonify(participant.__dict__), 201
+    return jsonify(event.to_dict())
 
-#DELETE participants
-@app.route('/participants/<int:participant_id>', methods=['DELETE'])
-def delete_participant(participant_id):
-    participant = Participant.query.get(participant_id)
-    if participant:
-        db.session.delete(participant)
-        db.session.commit()
-        return jsonify({'message': 'Participant deleted'}), 200
-    else:
-        return jsonify({'error': 'Participant not found'}), 404
+@app.route('/events/<int:id>', methods=['DELETE'])
+def delete_event(id):
+    event = Event.query.get_or_404(id)
+    db.session.delete(event)
+    db.session.commit()
+    return '', 204
+
+# Staff CRUD
+@app.route('/staff', methods=['GET'])
+def get_staff():
+    staff = Staff.query.all()
+    return jsonify([s.to_dict() for s in staff])
+
+@app.route('/staff/<int:id>', methods=['GET'])
+def get_staff_member(id):
+    staff_member = Staff.query.get_or_404(id)
+    return jsonify(staff_member.to_dict())
+
+@app.route('/staff', methods=['POST'])
+def create_staff():
+    data = request.json
+    new_staff = Staff(staffname=data['staffname'], image=data['image'])
+    db.session.add(new_staff)
+    db.session.commit()
+    return jsonify(new_staff.to_dict()), 201
+
+@app.route('/staff/<int:id>', methods=['PUT'])
+def update_staff(id):
+    data = request.json
+    staff_member = Staff.query.get_or_404(id)
+    staff_member.staffname = data.get('staffname', staff_member.staffname)
+    staff_member.image = data.get('image', staff_member.image)
+    db.session.commit()
+    return jsonify(staff_member.to_dict())
+
+@app.route('/staff/<int:id>', methods=['DELETE'])
+def delete_staff(id):
+    staff_member = Staff.query.get_or_404(id)
+    db.session.delete(staff_member)
+    db.session.commit()
+    return '', 204
+
+# ServiceProvider CRUD
+@app.route('/serviceproviders', methods=['GET'])
+def get_service_providers():
+    service_providers = ServiceProvider.query.all()
+    return jsonify([sp.to_dict() for sp in service_providers])
+
+@app.route('/serviceproviders/<int:id>', methods=['GET'])
+def get_service_provider(id):
+    service_provider = ServiceProvider.query.get_or_404(id)
+    return jsonify(service_provider.to_dict())
+
+@app.route('/serviceproviders', methods=['POST'])
+def create_service_provider():
+    data = request.json
+    new_service_provider = ServiceProvider(service_type=data['service_type'], products=data['products'])
+    db.session.add(new_service_provider)
+    db.session.commit()
+    return jsonify(new_service_provider.to_dict()), 201
+
+@app.route('/serviceproviders/<int:id>', methods=['PUT'])
+def update_service_provider(id):
+    data = request.json
+    service_provider = ServiceProvider.query.get_or_404(id)
+    service_provider.service_type = data.get('service_type', service_provider.service_type)
+    service_provider.products = data.get('products', service_provider.products)
+    db.session.commit()
+    return jsonify(service_provider.to_dict())
+
+@app.route('/serviceproviders/<int:id>', methods=['DELETE'])
+def delete_service_provider(id):
+    service_provider = ServiceProvider.query.get_or_404(id)
+    db.session.delete(service_provider)
+    db.session.commit()
+    return '', 204
+
+# Sponsor CRUD
+@app.route('/sponsors', methods=['GET'])
+def get_sponsors():
+    sponsors = Sponsor.query.all()
+    return jsonify([s.to_dict() for s in sponsors])
+
+@app.route('/sponsors/<int:id>', methods=['GET'])
+def get_sponsor(id):
+    sponsor = Sponsor.query.get_or_404(id)
+    return jsonify(sponsor.to_dict())
+
+@app.route('/sponsors', methods=['POST'])
+def create_sponsor():
+    data = request.json
+    new_sponsor = Sponsor(sponsorname=data['sponsorname'], amount=data['amount'])
+    db.session.add(new_sponsor)
+    db.session.commit()
+    return jsonify(new_sponsor.to_dict()), 201
+
+@app.route('/sponsors/<int:id>', methods=['PUT'])
+def update_sponsor(id):
+    data = request.json
+    sponsor = Sponsor.query.get_or_404(id)
+    sponsor.sponsorname = data.get('sponsorname', sponsor.sponsorname)
+    sponsor.amount = data.get('amount', sponsor.amount)
+    db.session.commit()
+    return jsonify(sponsor.to_dict())
+
+@app.route('/sponsors/<int:id>', methods=['DELETE'])
+def delete_sponsor(id):
+    sponsor = Sponsor.query.get_or_404(id)
+    db.session.delete(sponsor)
+    db.session.commit()
+    return '', 204
 
 if __name__ == '__main__':
-    app.run(port=5555)
+    app.run(debug=True)

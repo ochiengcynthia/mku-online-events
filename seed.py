@@ -1,53 +1,63 @@
 from faker import Faker
-from models import db, User, Event, Participant
-from main import app
+from models import db, User, Event, Staff, ServiceProvider, Sponsor
 import random
 from datetime import datetime, timedelta
+from main import app
 
-fake = Faker()
+# Initialize Faker
+faker = Faker()
 
-def seed_data():
-    with app.app_context():
-        db.drop_all()  # Drop existing tables
-        db.create_all()  # Create new tables
+# Create the app context
+with app.app_context():
+    # Drop all tables and recreate them
+    db.drop_all()
+    db.create_all()
 
-        users = []
-        for _ in range(10):
-            user = User(
-                username=fake.user_name(),
-                email=fake.email()
-            )
-            users.append(user)
-            db.session.add(user)
+    # Seed Users
+    for _ in range(10):
+        user = User(
+            username=faker.user_name(),
+            email=faker.email(),
+            password=faker.password()
+        )
+        db.session.add(user)
+    
+    # Seed Events
+    for _ in range(10):
+        event = Event(
+            eventname=faker.sentence(nb_words=3),
+            description=faker.text(max_nb_chars=200),
+            date=faker.date_between(start_date='-1y', end_date='today'),
+            venue=faker.address(),
+            clientname=faker.name()
+        )
+        db.session.add(event)
+    
+    # Seed Staff
+    for _ in range(10):
+        staff = Staff(
+            staffname=faker.name(),
+            image=faker.image_url()
+        )
+        db.session.add(staff)
 
-        db.session.commit()
+    # Seed Service Providers
+    for _ in range(10):
+        service_provider = ServiceProvider(
+            service_type=faker.job(),
+            products=faker.text(max_nb_chars=200)
+        )
+        db.session.add(service_provider)
+    
+    # Seed Sponsors
+    for _ in range(10):
+        sponsor = Sponsor(
+            sponsorname=faker.company(),
+            amount=random.uniform(1000, 10000)
+        )
+        db.session.add(sponsor)
 
-        events = []
-        for _ in range(10):
-            event = Event(
-                name=fake.catch_phrase(),
-                description=fake.text(),
-                date=fake.date_time_between(start_date='-1y', end_date='+1y'),
-                location=fake.address(),
-                organizer_id=random.choice(users).id
-            )
-            events.append(event)
-            db.session.add(event)
+    # Commit the changes
+    db.session.commit()
 
-        db.session.commit()
-
-        participants = []
-        for _ in range(30):
-            participant = Participant(
-                user_id=random.choice(users).id,
-                event_id=random.choice(events).id
-            )
-            participants.append(participant)
-            db.session.add(participant)
-
-        db.session.commit()
-
-        print("Database seeded!")
-
-if __name__ == '__main__':
-    seed_data()
+print("Database seeded successfully.")

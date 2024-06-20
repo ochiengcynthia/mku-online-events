@@ -2,38 +2,71 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+
+
 class User(db.Model):
-    __tablename__ = 'users'
-    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    events = db.relationship('Event', backref='organizer', lazy=True)
-    participants = db.relationship('Participant', backref='user', lazy=True)
+    password = db.Column(db.String(120), nullable=False)
 
     def to_dict(self):
-        return {'id':self.id, 'username': self.username, 'email':self.email}
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+        }
 
 class Event(db.Model):
-    __tablename__ = 'events'
-    
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    date = db.Column(db.DateTime, nullable=False)
-    location = db.Column(db.String(200), nullable=False)
-    organizer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    participants = db.relationship('Participant', backref='event', lazy=True)
+    eventname = db.Column(db.String(80), nullable=False)
+    description = db.Column(db.String(200), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    venue = db.Column(db.String(100), nullable=False)
+    clientname = db.Column(db.String(80), nullable=False)
 
-    def __rep(self):
-        return f'<Event {self.name}>'
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'eventname': self.eventname,
+            'description': self.description,
+            'date': self.date.isoformat(),
+            'venue': self.venue,
+            'clientname': self.clientname,
+        }
 
-class Participant(db.Model):
-    __tablename__ = 'participants'
-    
+class Staff(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
+    staffname = db.Column(db.String(80), nullable=False)
+    image = db.Column(db.String(200), nullable=True)
 
-    def __repr__(self):
-        return f'<Participant user_id={self.user_id} event_id={self.event_id}>'
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'staffname': self.staffname,
+            'image': self.image,
+        }
+
+class ServiceProvider(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    service_type = db.Column(db.String(80), nullable=False)
+    products = db.Column(db.String(200), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'service_type': self.service_type,
+            'products': self.products,
+        }
+
+class Sponsor(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sponsorname = db.Column(db.String(80), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'sponsorname': self.sponsorname,
+            'amount': self.amount,
+        }
